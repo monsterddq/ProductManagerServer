@@ -8,6 +8,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ProductManager.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ProductManager
 {
@@ -15,6 +17,10 @@ namespace ProductManager
     {
         public Startup(IConfiguration configuration)
         {
+            using (var client = new ProductManagerDBContext())
+            {
+                client.Database.EnsureCreated();
+            }
             Configuration = configuration;
         }
 
@@ -23,17 +29,27 @@ namespace ProductManager
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddMvcCore((option =>
+            {
+                option.CacheProfiles.Add("Default", new CacheProfile()
+                {
+                    Duration = 120,
+                    Location = ResponseCacheLocation.Any
+                });
+            }));
+            services.AddCors();
             services.AddMvc();
+            services.AddEntityFrameworkSqlite().AddDbContext<ProductManagerDBContext>();
         }
-
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
-
+            app.UseCors(builder => builder.AllowAnyOrigin()
+                                          .AllowAnyMethod()
+                                          .AllowAnyHeader());
             app.UseMvc();
         }
     }
